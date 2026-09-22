@@ -94,7 +94,7 @@ docs/                    # 본 문서 및 PRD
 
 ### 5.1 2계층 구조 (raw / curated)
 
-- **`aca_*` (raw)** — Aca2000 ETL 적재 원본. 정제 X, 외부 매시간 동기화.
+- **`aca_*` (raw)** — Aca2000 ETL 적재 원본. 정제 X, 외부 하루 1회(08:00) 동기화.
   - `aca_students, aca_classes, aca_enrollments, aca_attendances, aca_payments, aca_tickets, aca_class_accounts, aca_unpaid, aca_teachers, aca_teacher_subjects, aca_class_types` (총 11개, 0048까지 누적 + 5월 확장)
 - **`crm_*` (curated)** — 앱이 직접 읽고 쓰는 정제 계층. 분원 RLS·정책 적용.
   - `crm_students, crm_classes, crm_enrollments, crm_attendances`(raw 1:1 + 정제 룰)
@@ -286,7 +286,7 @@ can_write_branch(b)  can_send_branch(b)  can_read_branch(b)
 
 - **GitHub Actions 워크플로우** `.github/workflows/sync-aca.yml` (협업자 영역).
 - Python 스크립트 `scripts/etl/migrate_students.py` 등 4단계 + classes.start_date/end_date 백필 SQL.
-- 매시간 실행, Slack 통보.
+- 매일 08:00 실행(2026-09-22 부터, 이전 30분 주기), Slack 통보.
 - **상시 노트북 ETL 배포 (윈도우)**: scripts/etl의 run_all.bat + register-task.ps1. record_sync.py가 `etl_sync_runs` 테이블(0079)에 실행 이력 기록 → 사이드바 "마지막 동기화 시각" 표시.
 - `apply_aca_to_crm()` SQL 함수가 ETL 종료 후 호출 — raw → curated 정제 UPSERT.
 

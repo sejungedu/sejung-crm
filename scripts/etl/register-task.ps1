@@ -1,6 +1,7 @@
 # ============================================================
 # register-task.ps1
-# 세정-CRM ETL 작업을 Windows 작업 스케줄러에 등록 (30분 주기 · 09:00~24:00 자동 동기화).
+# 세정-CRM ETL 작업을 Windows 작업 스케줄러에 등록 (하루 1회 · 매일 08:00 자동 동기화).
+# 2026-09-22 30분 주기 → 하루 1회로 변경. 예전 이름(CRM-ETL-Hourly)으로 등록된 작업이 있으면 지운다.
 # ------------------------------------------------------------
 # sejung-etl.xml 을 읽어 그 안의 경로(C:\sejung-crm)를 *현재 저장소 위치*로
 # 치환한 뒤 등록한다. $PSScriptRoot(= scripts\etl) 기준으로 저장소 루트를
@@ -17,9 +18,12 @@ $xmlPath = Join-Path $PSScriptRoot 'sejung-etl.xml'
 # XML 안의 자리표시 경로 C:\sejung-crm 를 실제 저장소 경로로 치환
 $xml = (Get-Content $xmlPath -Raw) -replace 'C:\\sejung-crm', $repo
 
-Register-ScheduledTask -Xml $xml -TaskName 'CRM-ETL-Hourly' -TaskPath '\Sejung\' -Force | Out-Null
+# 이전 30분 주기 작업이 남아 있으면 제거 (없으면 조용히 넘어감)
+Unregister-ScheduledTask -TaskName 'CRM-ETL-Hourly' -TaskPath '\Sejung\' -Confirm:$false -ErrorAction SilentlyContinue
+
+Register-ScheduledTask -Xml $xml -TaskName 'CRM-ETL-Daily' -TaskPath '\Sejung\' -Force | Out-Null
 
 Write-Host "[OK] 등록 완료. 저장소 경로 = $repo"
-Get-ScheduledTask -TaskName 'CRM-ETL-Hourly' -TaskPath '\Sejung\' |
+Get-ScheduledTask -TaskName 'CRM-ETL-Daily' -TaskPath '\Sejung\' |
   Select-Object TaskName, TaskPath, State |
   Format-List

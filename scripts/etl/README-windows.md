@@ -60,14 +60,15 @@ SUPABASE_SECRET_KEY=<Vercel env 의 SUPABASE_SECRET_KEY 동일 값>
 
 > `sync_now.bat` 은 평소에도 운영자가 **수동 동기화** 가 필요할 때 더블클릭으로 쓰는 진입점입니다. 자동 스케줄과 별개로 언제든 실행 가능.
 
-## 5. 작업 스케줄러 등록 (30분 주기 · 09:00~24:00 자동 실행)
+## 5. 작업 스케줄러 등록 (하루 1회 · 매일 08:00 자동 실행)
 
 ### 방법 A. XML import (1분)
 
 1. **시작 → 작업 스케줄러** 검색해서 실행
 2. 우측 "작업 가져오기" 클릭
 3. `C:\sejung-crm\scripts\etl\sejung-etl.xml` 선택
-4. 열린 창에서 그냥 **확인** — 경로(`C:\sejung-crm`)·트리거(매일 09:00 시작 + 30분마다 반복, 15시간 = 24:00 까지)가 XML 에 이미 박혀 있어 수정 불필요
+4. 열린 창에서 그냥 **확인** — 경로(`C:\sejung-crm`)·트리거(매일 08:00 1회)가 XML 에 이미 박혀 있어 수정 불필요
+   - 이미 예전 작업(`Sejung\CRM-ETL-Hourly`, 30분 주기)이 등록돼 있다면 그 작업은 **삭제**할 것. 둘 다 있으면 30분마다 계속 돈다. `register-task.ps1` 로 등록하면 자동으로 지워 준다.
    - ⚠️ `C:\sejung-crm` 가 **아닌** 다른 경로에 clone 했다면, **Actions 탭** 더블클릭 후 Arguments·Start in 의 `C:\sejung-crm` 를 실제 경로로 바꿀 것
 5. (선택) **General 탭** → "사용자가 로그온 여부와 관계없이 실행" 체크
 6. 확인 → Windows 계정 비밀번호 입력 → 등록 완료
@@ -80,23 +81,23 @@ $action = New-ScheduledTaskAction `
   -Argument '/c "C:\sejung-crm\scripts\etl\run_all.bat"' `
   -WorkingDirectory "C:\sejung-crm"
 
-$trigger = New-ScheduledTaskTrigger `
-  -Once -At (Get-Date).Date.AddHours(9) `
-  -RepetitionInterval (New-TimeSpan -Minutes 30) `
-  -RepetitionDuration (New-TimeSpan -Hours 15)
+$trigger = New-ScheduledTaskTrigger -Daily -At 08:00
+
+Unregister-ScheduledTask -TaskName "CRM-ETL-Hourly" -TaskPath "\Sejung\" -Confirm:$false -ErrorAction SilentlyContinue
 
 Register-ScheduledTask `
-  -TaskName "Sejung\CRM-ETL-Hourly" `
+  -TaskName "Sejung\CRM-ETL-Daily" `
   -Action $action -Trigger $trigger `
-  -Description "세정학원 ETL 30분 주기 자동 동기화 (09:00~24:00)"
+  -Description "세정학원 ETL 하루 1회 자동 동기화 (매일 08:00)"
 ```
 
 ### 주기 정책 메모
 
-- 09:00~24:00 사이 30분마다 실행. 심야(00:00~09:00)는 원본 변경이 없어 쉰다.
-- ETL 1회 평균 15~20분. 30분 주기면 대개 다음 발사 전에 끝난다.
+- 매일 08:00 1회 실행 (2026-09-22 부터. 그 전엔 09:00~24:00 30분 주기였다). 직원 출근 전에 전날 변경분이 반영된다.
+- 낮에 Aca 를 고치고 바로 CRM 에 보고 싶으면 `sync_now.bat` 수동 실행.
+- ETL 1회 평균 15~20분. 실행 시간 제한 2시간.
 - 작업 스케줄러 정책 `IgnoreNew` — 이전 실행이 안 끝나면 새 실행 무시 (중복 발사 차단).
-- 실행 시간 제한 55분 — 다음 정각 직전에 강제 종료.
+- 노트북이 08:00 에 꺼져 있었으면 켜진 뒤 바로 실행된다 (`StartWhenAvailable`).
 
 ## 6. 일상 운영
 
@@ -111,12 +112,12 @@ Register-ScheduledTask `
 | 확인 항목 | 위치 |
 |---|---|
 | 최근 ETL 결과 | `scripts\etl\logs\오늘날짜.log` |
-| 30분마다 잘 돌고 있나? | 작업 스케줄러 → Sejung\CRM-ETL-Hourly → "지난 실행 결과" |
+| 오늘 08:00 에 돌았나? | 작업 스케줄러 → Sejung\CRM-ETL-Daily → "지난 실행 결과" |
 | 실패 단계 | 로그에서 `FAIL ✗` 검색 |
 
 ### 절전·덮개 설정 (필수)
 
-09:00~24:00 사이 실행되려면 노트북이 깨어 있어야 합니다.
+매일 08:00 에 실행되려면 그 시각에 노트북이 켜져 있어야 합니다 (꺼져 있으면 켜진 직후 실행).
 
 1. **설정 → 시스템 → 전원 및 절전**
    - "절전 모드 진입": **사용 안 함**
@@ -148,7 +149,7 @@ pip install -r scripts\etl\requirements.txt
 | `pymssql` 설치 실패 | Python 3.12 64bit 권장. 32bit/64bit 일치 확인 |
 | `Login failed for user` | `.env` 의 `ACA_MSSQL_PASSWORD` 오타 / MSSQL 서버 접근 차단 |
 | `Supabase 403` | `SUPABASE_SECRET_KEY` 가 anon key 가 아닌 **service_role** 인지 확인 |
-| 정각인데 안 돌았음 | 노트북 절전 / 네트워크 끊김 / 작업 스케줄러 마지막 실행 결과 |
+| 08:00 인데 안 돌았음 | 노트북 절전 / 네트워크 끊김 / 작업 스케줄러 마지막 실행 결과 |
 | 수동 동기화 창이 바로 닫힘 | `sync_now.bat` 더블클릭 (아닌 `run_all.bat`) — 콘솔 자동 종료 안 됨 |
 
 ## 파일 역할 요약

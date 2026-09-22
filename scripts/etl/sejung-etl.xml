@@ -1,18 +1,14 @@
 <?xml version="1.0" encoding="UTF-16"?>
 <Task version="1.4" xmlns="http://schemas.microsoft.com/windows/2004/02/mit/task">
   <RegistrationInfo>
-    <Description>세정학원 CRM · Aca2000 MSSQL → Supabase ETL 30분 주기 동기화 · 09:00~24:00 KST</Description>
-    <URI>\Sejung\CRM-ETL-Hourly</URI>
+    <Description>세정학원 CRM · Aca2000 MSSQL → Supabase ETL 하루 1회 동기화 · 매일 08:00 KST</Description>
+    <URI>\Sejung\CRM-ETL-Daily</URI>
   </RegistrationInfo>
   <Triggers>
     <CalendarTrigger>
-      <StartBoundary>2026-05-22T09:00:00</StartBoundary>
+      <!-- 2026-09-22 하루 1회로 변경 (이전: 09:00~24:00 30분 반복). 시각을 바꾸려면 StartBoundary 의 시간만 고친다. -->
+      <StartBoundary>2026-09-22T08:00:00</StartBoundary>
       <Enabled>true</Enabled>
-      <Repetition>
-        <Interval>PT30M</Interval>
-        <Duration>PT15H</Duration>
-        <StopAtDurationEnd>false</StopAtDurationEnd>
-      </Repetition>
       <ScheduleByDay>
         <DaysInterval>1</DaysInterval>
       </ScheduleByDay>
@@ -41,8 +37,8 @@
     <Hidden>false</Hidden>
     <RunOnlyIfIdle>false</RunOnlyIfIdle>
     <WakeToRun>true</WakeToRun>
-    <!-- ETL 1회 평균 5~15분. 다음 시간 전에 무조건 끝나도록 55분 한도. -->
-    <ExecutionTimeLimit>PT55M</ExecutionTimeLimit>
+    <!-- ETL 1회 평균 5~20분. 하루 1회라 다음 실행과 겹칠 일은 없지만 무한 대기는 막는다. -->
+    <ExecutionTimeLimit>PT2H</ExecutionTimeLimit>
     <Priority>7</Priority>
   </Settings>
   <Actions Context="Author">

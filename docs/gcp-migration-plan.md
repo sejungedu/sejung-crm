@@ -24,7 +24,7 @@
 | 스케줄 작업(DB) | pg_cron 2개(stalled sweep, dispatch) | 중 |
 | 시크릿 | Supabase Vault(drain_secret) + Vercel env | 낮음 |
 | Storage / Edge Functions / Realtime | **미사용** | 없음 |
-| ETL | Windows 노트북 Python: Aca2000(MSSQL) → Supabase 매시간 | 중 (재연결) |
+| ETL | Windows 노트북 Python: Aca2000(MSSQL) → Supabase 하루 1회 | 중 (재연결) |
 
 **핵심 통찰:** Vercel 탈출은 얕고, **진짜 작업은 "Supabase 플랫폼 떠나기"**(데이터 240곳 + 인증 + RLS).
 
