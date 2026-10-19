@@ -11,6 +11,7 @@
  *   SENDON_FROM_NUMBER_BANPO       반포  · 예) 0262420909 (02-6242-0909)
  *   SENDON_FROM_NUMBER_BANGBAE     방배  · 예) 025326552  (02-532-6552)
  *   SENDON_FROM_NUMBER_SONGDO      송도  · 예) 0328580005 (032-858-0005)
+ *   SENDON_FROM_NUMBER_DONGTAN     동탄  · 예) 01028937733 (010-2893-7733 · 법인폰 예비)
  *
  * division(발신 정체성) 축: 같은 분원·같은 계정이라도 division 이 다르면 발신번호가
  * 다르다(대치 본원 vs 대치 수학관). 본원은 기존 키(SENDON_FROM_NUMBER_DAECHI) 그대로,
@@ -32,6 +33,7 @@ const BRANCH_FROM_NUMBER_ENV: Record<Branch, string> = {
   반포: "SENDON_FROM_NUMBER_BANPO",
   방배: "SENDON_FROM_NUMBER_BANGBAE",
   송도: "SENDON_FROM_NUMBER_SONGDO",
+  동탄: "SENDON_FROM_NUMBER_DONGTAN",
 };
 
 /**
@@ -58,18 +60,21 @@ const DIVISION_ENV_SUFFIX: Record<Division, string> = {
  *   SENDON_USER_ID_BANPO   / SENDON_API_KEY_BANPO   반포
  *   SENDON_USER_ID_BANGBAE / SENDON_API_KEY_BANGBAE 방배
  *   SENDON_USER_ID_SONGDO  / SENDON_API_KEY_SONGDO  송도
+ *   SENDON_USER_ID_DONGTAN / SENDON_API_KEY_DONGTAN 동탄
  */
 const BRANCH_USER_ID_ENV: Record<Branch, string> = {
   대치: "SENDON_USER_ID_DAECHI",
   반포: "SENDON_USER_ID_BANPO",
   방배: "SENDON_USER_ID_BANGBAE",
   송도: "SENDON_USER_ID_SONGDO",
+  동탄: "SENDON_USER_ID_DONGTAN",
 };
 const BRANCH_API_KEY_ENV: Record<Branch, string> = {
   대치: "SENDON_API_KEY_DAECHI",
   반포: "SENDON_API_KEY_BANPO",
   방배: "SENDON_API_KEY_BANGBAE",
   송도: "SENDON_API_KEY_SONGDO",
+  동탄: "SENDON_API_KEY_DONGTAN",
 };
 
 /** 환경변수 값에서 숫자만 추출(하이픈·공백 방어). 빈 값이면 null. */
@@ -94,9 +99,12 @@ function envText(raw: string | undefined): string | undefined {
  *
  * 우선순위: 분원 전용 계정 키 > 공유 분원 계정 키 > 기본 키.
  * 방배가 나중에 독립 계정이 되면 SENDON_USER_ID_BANGBAE 를 넣으면 그게 우선한다.
+ *
+ * 동탄도 반포 계정(banposejung)에 발신번호를 등록해 쓴다(2026-10-19).
  */
 const ACCOUNT_SHARE: Partial<Record<Branch, Branch>> = {
   방배: "반포",
+  동탄: "반포",
 };
 
 /**

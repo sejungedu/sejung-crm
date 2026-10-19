@@ -32,6 +32,7 @@ const BRANCH_BRAND: Record<string, string> = {
   반포: `반포 ${BRAND_BASE}`,
   송도: `송도 ${BRAND_BASE}`,
   방배: `방배 ${BRAND_BASE}`,
+  동탄: `동탄 ${BRAND_BASE}`,
 };
 
 /**

@@ -32,6 +32,7 @@ describe("branchBrandName · 분원별 발신 브랜드명", () => {
     expect(branchBrandName("반포")).toBe("반포 세정학원");
     expect(branchBrandName("송도")).toBe("송도 세정학원");
     expect(branchBrandName("방배")).toBe("방배 세정학원");
+    expect(branchBrandName("동탄")).toBe("동탄 세정학원");
   });
 });
 

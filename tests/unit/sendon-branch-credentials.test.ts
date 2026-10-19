@@ -92,6 +92,21 @@ describe("sendonUserId / sendonApiKey · 분원별 계정", () => {
     // 방배 번호는 방배 전용 — 반포 번호로 안 샘.
     expect(sendonFromNumber("방배")).toBe("025326552");
   });
+
+  it("동탄: 계정은 반포 공유, 발신번호는 동탄 전용", () => {
+    vi.stubEnv("SENDON_USER_ID", "base-user");
+    vi.stubEnv("SENDON_API_KEY", "base-key");
+    vi.stubEnv("SENDON_USER_ID_BANPO", "banpo-user");
+    vi.stubEnv("SENDON_API_KEY_BANPO", "banpo-key");
+    vi.stubEnv("SENDON_USER_ID_DONGTAN", "");
+    vi.stubEnv("SENDON_API_KEY_DONGTAN", "");
+    vi.stubEnv("SENDON_FROM_NUMBER", "0212340000");
+    vi.stubEnv("SENDON_FROM_NUMBER_BANPO", "0262420909");
+    vi.stubEnv("SENDON_FROM_NUMBER_DONGTAN", "010-2893-7733");
+    expect(sendonUserId("동탄")).toBe("banpo-user");
+    expect(sendonApiKey("동탄")).toBe("banpo-key");
+    expect(sendonFromNumber("동탄")).toBe("01028937733");
+  });
 });
 
 describe("sendonFromNumber · 분원별 발신번호 (계정과 동일 폴백)", () => {

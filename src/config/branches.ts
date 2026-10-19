@@ -8,7 +8,7 @@
  */
 
 /** 실제 분원 목록 (학생·계정·발송 그룹 생성 시 선택지). */
-export const BRANCHES = ["대치", "송도", "반포", "방배"] as const;
+export const BRANCHES = ["대치", "송도", "반포", "방배", "동탄"] as const;
 export type Branch = (typeof BRANCHES)[number];
 
 /**
