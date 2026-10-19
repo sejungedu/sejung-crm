@@ -252,7 +252,7 @@ describe("createSeminarBroadcastAction · {이름} 본문 변수 잔존 가드",
       expect(r.status).toBe("success");
     });
 
-    it("{초대링크}가 아예 없는 본문도 #{이름}이 자동 부착되지만 {이름} 가드에 걸리지 않는다", async () => {
+    it("{초대링크}가 아예 없는 본문(링크 없이 발송)도 {이름} 가드에 걸리지 않는다", async () => {
       const createSeminarBroadcastAction = await loadAction();
       const r = await createSeminarBroadcastAction({
         ...base,

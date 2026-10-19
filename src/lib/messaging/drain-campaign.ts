@@ -96,13 +96,11 @@ export interface DrainChunkResult {
 /**
  * 설명회 발송 본문에 학생별 신청 URL 자리(sendon name 슬롯)를 만든다.
  *  - 본문에 {초대링크} 가 있으면 그 자리를 #{이름} 로 전부 치환.
- *  - 없으면 본문 끝에 "신청: #{이름}" 을 부착.
+ *  - 없으면 본문 그대로 — 링크 없이 발송(운영 요청 2026-10-19).
  * createSeminarBroadcastAction 의 finalBody 합성과 동일 규칙(순수 함수, 테스트용 export).
  */
 export function applyInviteLinkToken(body: string): string {
-  return body.includes(INVITE_LINK_TOKEN)
-    ? body.split(INVITE_LINK_TOKEN).join(SENDON_INVITE_PLACEHOLDER)
-    : `${body}\n\n신청: ${SENDON_INVITE_PLACEHOLDER}`;
+  return body.split(INVITE_LINK_TOKEN).join(SENDON_INVITE_PLACEHOLDER);
 }
 
 export async function drainCampaignChunk(
@@ -141,10 +139,12 @@ export async function drainCampaignChunk(
       : undefined;
 
   // 초대링크 모드 — 설명회 발송(createSeminarBroadcastAction)이 적재한 캠페인은
-  // 학생별 고유 신청 URL 을 sendon name 슬롯에 박는다. campaign.body 토큰에
-  // 의존하지 않고 "이 캠페인에 invitation 이 있는가"로 판정한다(그룹/엑셀 발송은
-  // invitation 이 없어 자동으로 일반 경로 → 회귀 안전).
-  const inviteMode = await hasInvitations(supabase, campaignId);
+  // 학생별 고유 신청 URL 을 sendon name 슬롯에 박는다. "이 캠페인에 invitation 이
+  // 있는가"로 판정한다(그룹/엑셀 발송은 invitation 이 없어 자동으로 일반 경로).
+  // 단, 본문에 {초대링크} 가 없으면 링크 없이 보내므로 name 슬롯도 쓰지 않는다(일반 경로).
+  const inviteMode =
+    campaign.body.includes(INVITE_LINK_TOKEN) &&
+    (await hasInvitations(supabase, campaignId));
   const inviteUrlMap = inviteMode
     ? await loadInviteUrlMap(supabase, campaignId)
     : null;
@@ -157,8 +157,7 @@ export async function drainCampaignChunk(
   // 발신 브랜드명 — 캠페인 분원×division 기준(대치 본원="세정학원", 수학관="세정학원 수학관").
   const brand = branchBrandName(campaign.branch, senderDivision);
   if (inviteMode) {
-    // {초대링크} → #{이름}(sendon name 슬롯). 없으면 "신청: #{이름}" 부착 —
-    // createSeminarBroadcastAction 의 finalBody 합성과 동일 규칙.
+    // {초대링크} → #{이름}(sendon name 슬롯) — createSeminarBroadcastAction 과 동일 규칙.
     const withPlaceholder = applyInviteLinkToken(campaign.body);
     sendBody = applyDateToken(
       insertUnsubscribeFooter(

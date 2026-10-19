@@ -151,7 +151,9 @@ export function SeminarComposeStep3Body({
     [clientFinalBody],
   );
   const limit = BYTE_LIMITS[state.type];
-  const projectedBytes = bodyBytesNoUrl + URL_RESERVED_BYTES;
+  const hasInviteVar = state.body.includes("{초대링크}");
+  // URL 자리 예약은 {초대링크} 가 있을 때만 — 없으면 링크 없이 발송된다.
+  const projectedBytes = bodyBytesNoUrl + (hasInviteVar ? URL_RESERVED_BYTES : 0);
   const isOverLimit = projectedBytes > limit;
 
   // 광고면 제목 앞 (광고) 가 발송 시 붙으므로 바이트에도 포함해 센다.
@@ -165,22 +167,17 @@ export function SeminarComposeStep3Body({
   }, [state.subject, state.isAd]);
   const subjectOverflow = subjectBytes > SUBJECT_BYTE_LIMIT;
 
-  const hasInviteVar = state.body.includes("{초대링크}");
-
   // 미리보기 본문 — 브랜드 머리(+광고)는 insertSenderHeader 로 반영, footer(무료
   // 수신거부)는 PhonePreviewCard 가 footer prop 으로 따로 렌더하므로 제외(중복 방지).
-  // {초대링크} → 예시 URL, 변수 없으면 자동 부착.
+  // {초대링크} → 예시 URL. 변수가 없으면 링크 없이 발송되므로 붙이지 않는다.
   // {날짜} → 발송일 'M월 D일' — 실제 발송(drain-campaign)이 applyDateToken 으로
   // 같은 치환을 하므로 동일 함수를 써서 미리보기가 실제와 어긋나지 않게 한다.
   const previewBody = useMemo(() => {
-    let next = insertSenderHeader(state.body, state.isAd, brandName)
+    const next = insertSenderHeader(state.body, state.isAd, brandName)
       .split("{초대링크}")
       .join(SAMPLE_INVITE_URL);
-    if (!hasInviteVar && state.body.trim().length > 0) {
-      next = `${next}\n신청하기: ${SAMPLE_INVITE_URL}`;
-    }
     return applyDateToken(next, new Date());
-  }, [state.body, state.isAd, hasInviteVar, brandName]);
+  }, [state.body, state.isAd, brandName]);
 
   /** 변수 토큰을 본문 textarea 의 cursor 위치에 삽입. */
   const insertToken = (token: string) => {
@@ -286,8 +283,8 @@ export function SeminarComposeStep3Body({
         <p className="mt-1 text-[13px] text-[color:var(--text-muted)]">
           왼쪽 &lsquo;세정학원 문자&rsquo; 칸에 제목·본문을 작성하면 오른쪽
           미리보기에 즉시 반영됩니다. 학생별 신청 URL 은 본문의{" "}
-          <code className="text-[12px]">{`{초대링크}`}</code> 자리에 자동 치환되고,
-          변수가 없으면 끝에 자동 부착됩니다.
+          <code className="text-[12px]">{`{초대링크}`}</code> 자리에 자동 치환됩니다.
+          변수를 지우면 링크 없이 발송되며, 이 경우 신청 여부가 추적되지 않습니다.
         </p>
       </div>
 
@@ -602,9 +599,9 @@ export function SeminarComposeStep3Body({
               style={{ fontFamily: "var(--font-sans)" }}
             />
             <p className="text-[11px] text-[color:var(--text-dim)] leading-relaxed">
-              본문 {bodyBytesNoUrl.toLocaleString()}바이트 + 학생별 URL{" "}
-              {URL_RESERVED_BYTES}바이트 합산값입니다.
-              {!hasInviteVar && " · 변수가 없어 끝에 자동 부착돼요."}
+              {hasInviteVar
+                ? `본문 ${bodyBytesNoUrl.toLocaleString()}바이트 + 학생별 URL ${URL_RESERVED_BYTES}바이트 합산값입니다.`
+                : `본문 ${bodyBytesNoUrl.toLocaleString()}바이트 · {초대링크} 가 없어 링크 없이 발송돼요.`}
             </p>
             {isOverLimit && (
               <p

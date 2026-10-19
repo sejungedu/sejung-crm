@@ -974,7 +974,7 @@ export async function createSeminarBroadcastAction(
   // 6) 본문 + 학생별 URL placeholder 변환 + 광고 가드 가공.
   //    순서:
   //      a. {이름} 토큰 잔존 검사 (본 발송 미지원 — name 슬롯을 URL 로 점유) — 치환 전 원문 기준
-  //      b. {초대링크} → #{이름} (sendon Replace 슬롯) — 없으면 본문 끝에 자동 부착
+  //      b. {초대링크} → #{이름} (sendon Replace 슬롯) — 없으면 링크 없이 발송
   //      c. is_ad=true 면 (광고) prefix 부착 (이미 있으면 스킵)
   //      d. is_ad=true 면 \n무료수신거부 080-XXXX footer 부착 (이미 있으면 스킵)
   //      e. URL 최장 합성 후 EUC-KR 바이트 한도 검증
@@ -994,9 +994,7 @@ export async function createSeminarBroadcastAction(
     };
   }
 
-  let finalBody = trimmed.includes(INVITE_LINK_TOKEN)
-    ? trimmed.split(INVITE_LINK_TOKEN).join(SENDON_INVITE_PLACEHOLDER)
-    : `${trimmed}\n\n신청: ${SENDON_INVITE_PLACEHOLDER}`;
+  let finalBody = trimmed.split(INVITE_LINK_TOKEN).join(SENDON_INVITE_PLACEHOLDER);
 
   // 발신 브랜드 머리(+광고 prefix) — 분원별 브랜드. footer 는 아래.
   finalBody = insertSenderHeader(
@@ -1589,11 +1587,8 @@ export async function seminarTestSendAction(
   // 7) inviteUrl 합성.
   const inviteUrl = buildInviteUrl(invitation.token);
 
-  // 8) 본문 치환: {초대링크} 전부 → inviteUrl. 없으면 끝에 부착(위저드 미리보기와 일치).
-  const rawBody = input.body;
-  const finalBody = rawBody.includes(INVITE_LINK_TOKEN)
-    ? rawBody.split(INVITE_LINK_TOKEN).join(inviteUrl)
-    : `${rawBody}\n\n신청: ${inviteUrl}`;
+  // 8) 본문 치환: {초대링크} 전부 → inviteUrl. 없으면 링크 없이(위저드 미리보기와 일치).
+  const finalBody = input.body.split(INVITE_LINK_TOKEN).join(inviteUrl);
 
   // 9) testSend() 코어 재사용 — 단건이라 name-slot 개인화 불필요(평문 본문 그대로).
   const sendResult = await testSend({
