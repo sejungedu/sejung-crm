@@ -11,7 +11,7 @@
  *   SENDON_FROM_NUMBER_BANPO       반포  · 예) 0262420909 (02-6242-0909)
  *   SENDON_FROM_NUMBER_BANGBAE     방배  · 예) 025326552  (02-532-6552)
  *   SENDON_FROM_NUMBER_SONGDO      송도  · 예) 0328580005 (032-858-0005)
- *   SENDON_FROM_NUMBER_DONGTAN     동탄  · 예) 01028937733 (010-2893-7733 · 법인폰 예비)
+ *   SENDON_FROM_NUMBER_DONGTAN     동탄  · 예) 03180435911 (031-8043-5911)
  *
  * division(발신 정체성) 축: 같은 분원·같은 계정이라도 division 이 다르면 발신번호가
  * 다르다(대치 본원 vs 대치 수학관). 본원은 기존 키(SENDON_FROM_NUMBER_DAECHI) 그대로,
