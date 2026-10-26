@@ -4,6 +4,7 @@ import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
+  CalendarClock,
   Megaphone,
   Send,
   UserRound,
@@ -11,6 +12,11 @@ import {
 import { useToast } from "@/components/ui/toast";
 import { byteProgress } from "@/lib/messaging/sms-bytes";
 import { applyNameToken } from "@/lib/messaging/personalize";
+import {
+  SCHEDULE_MIN_LEAD_MS,
+  SCHEDULE_MIN_LEAD_LABEL,
+} from "@/lib/messaging/schedule-window";
+import { formatScheduleDisplay } from "@/lib/messaging/format-schedule";
 import {
   BYTE_LIMITS,
   type TemplateTypeLiteral,
@@ -31,12 +37,19 @@ const TYPE_OPTIONS: Array<{
   { value: "LMS", label: "장문 (LMS)", hint: "2,000바이트 · 한글 약 1,000자" },
 ];
 
+/** Date → datetime-local 값(YYYY-MM-DDTHH:mm), 로컬 시간 기준. */
+function toLocalInput(d: Date): string {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 /**
  * 엑셀 보내기 ④ 본문 작성 + ⑤ 발송.
  *
  * - 유형(SMS/LMS) 토글, LMS 제목, 본문(+{이름} 삽입), 광고 토글, 바이트 카운터.
  * - 미리보기 말풍선: 첫 정상 행의 이름으로 {이름} 치환.
  * - 발송: 잘못된 번호 제외 + 중복 1회 정리한 명단을 excelSendAction 으로 전송.
+ *   즉시 발송 또는 예약 발송(최소 5분 후, 발송 전까지 캠페인 상세에서 취소 가능).
  */
 export function ExcelComposePanel({ rows }: Props) {
   const { show } = useToast();
@@ -48,6 +61,12 @@ export function ExcelComposePanel({ rows }: Props) {
   const [body, setBody] = useState("");
   const [isAd, setIsAd] = useState(false);
   const [sending, startSend] = useTransition();
+  const [mode, setMode] = useState<"now" | "schedule">("now");
+  const [scheduleAt, setScheduleAt] = useState("");
+  const minScheduleAt = useMemo(
+    () => toLocalInput(new Date(Date.now() + SCHEDULE_MIN_LEAD_MS)),
+    [],
+  );
 
   const sendRecipients = useMemo(() => buildSendRecipients(rows), [rows]);
   const firstName = useMemo(() => {
@@ -61,7 +80,10 @@ export function ExcelComposePanel({ rows }: Props) {
   const bodyEmpty = body.trim() === "";
   const noRecipients = sendRecipients.length === 0;
 
-  const disabled = sending || bodyEmpty || overflow || noRecipients;
+  const scheduleMissing = mode === "schedule" && !scheduleAt;
+
+  const disabled =
+    sending || bodyEmpty || overflow || noRecipients || scheduleMissing;
 
   const onTypeChange = (next: TemplateTypeLiteral) => {
     setType(next);
@@ -99,9 +121,27 @@ export function ExcelComposePanel({ rows }: Props) {
         subject: subjectRequired ? subject.trim() || null : null,
         body,
         isAd,
+        scheduledAt:
+          mode === "schedule" && scheduleAt
+            ? new Date(scheduleAt).toISOString()
+            : null,
       });
 
       switch (result.status) {
+        case "scheduled": {
+          const parts = [
+            `${formatScheduleDisplay(result.scheduledAt)} 발송 예약`,
+          ];
+          if (result.skippedUnsub > 0)
+            parts.push(`수신거부 제외 ${result.skippedUnsub.toLocaleString()}`);
+          if (result.skippedInvalid > 0)
+            parts.push(`잘못된 번호 ${result.skippedInvalid.toLocaleString()}`);
+          if (result.deduped > 0)
+            parts.push(`중복 ${result.deduped.toLocaleString()}`);
+          show("success", parts.join(" · "));
+          router.push(`/campaigns/${result.campaignId}`);
+          break;
+        }
         case "success": {
           const parts = [`발송 ${result.sent.toLocaleString()}건 접수`];
           if (result.skippedUnsub > 0)
@@ -351,6 +391,54 @@ export function ExcelComposePanel({ rows }: Props) {
 
       {/* 발송 */}
       <div className="flex flex-col gap-2 border-t border-[color:var(--border)] pt-4">
+        {/* 발송 시점 (즉시 / 예약) */}
+        <fieldset className="flex flex-wrap items-center gap-3">
+          <legend className="sr-only">발송 시점</legend>
+          <label className="flex items-center gap-2 cursor-pointer text-[14px] text-[color:var(--text)]">
+            <input
+              type="radio"
+              name="excel-send-mode"
+              checked={mode === "now"}
+              onChange={() => {
+                setMode("now");
+                setScheduleAt("");
+              }}
+              className="size-4 accent-[color:var(--action)]"
+            />
+            즉시 발송
+          </label>
+          <label className="flex items-center gap-2 cursor-pointer text-[14px] text-[color:var(--text)]">
+            <input
+              type="radio"
+              name="excel-send-mode"
+              checked={mode === "schedule"}
+              onChange={() => setMode("schedule")}
+              className="size-4 accent-[color:var(--action)]"
+            />
+            예약 발송
+          </label>
+          {mode === "schedule" && (
+            <input
+              type="datetime-local"
+              value={scheduleAt}
+              min={minScheduleAt}
+              onChange={(e) => setScheduleAt(e.target.value)}
+              aria-label="예약 시각"
+              className="h-10 rounded-lg px-3 bg-[color:var(--bg-card)] border border-[color:var(--border)] text-[15px] text-[color:var(--text)] focus:outline-none focus:border-[color:var(--border-strong)]"
+            />
+          )}
+        </fieldset>
+        {mode === "schedule" && (
+          <p className="flex items-start gap-1.5 text-[12px] text-[color:var(--text-muted)]">
+            <CalendarClock
+              className="size-3.5 mt-0.5 shrink-0"
+              strokeWidth={1.75}
+              aria-hidden
+            />
+            최소 {SCHEDULE_MIN_LEAD_LABEL} 이후로 예약할 수 있고, 발송 전까지
+            캠페인 상세에서 바로 취소·변경할 수 있어요.
+          </p>
+        )}
         <div className="flex items-center justify-between gap-3">
           <p className="text-[13px] text-[color:var(--text-muted)]" aria-live="polite">
             발송 대상{" "}
@@ -375,7 +463,13 @@ export function ExcelComposePanel({ rows }: Props) {
             "
           >
             <Send className="size-4" strokeWidth={1.75} aria-hidden />
-            {sending ? "발송 중..." : "발송하기"}
+            {sending
+              ? mode === "schedule"
+                ? "예약 중..."
+                : "발송 중..."
+              : mode === "schedule"
+                ? "예약하기"
+                : "발송하기"}
           </button>
         </div>
         {noRecipients && (

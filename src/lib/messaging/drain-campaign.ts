@@ -372,11 +372,14 @@ async function processOneBatch(args: {
       ),
     );
     const nameMap = await loadStudentNames(supabase, studentIds);
+    // 학생 연결이 없는 수신자(엑셀 예약 발송)는 적재 시 저장한 recipient_name.
     recipients = pending.map((p) => ({
       phone: p.phone,
       name:
-        (p.student_id ? nameMap.get(p.student_id) ?? "" : "").trim() ||
-        "학부모님",
+        (p.student_id
+          ? nameMap.get(p.student_id) ?? ""
+          : p.recipient_name ?? ""
+        ).trim() || "학부모님",
     }));
   }
 
@@ -500,6 +503,8 @@ interface PendingRow {
   id: string;
   phone: string;
   student_id: string | null;
+  /** 엑셀 발송 수신자 이름 (학생 발송은 null). */
+  recipient_name?: string | null;
 }
 
 /**
@@ -560,7 +565,7 @@ async function fetchPending(
 ): Promise<PendingRow[]> {
   const { data, error } = await supabase
     .from("crm_messages")
-    .select("id, phone, student_id")
+    .select("id, phone, student_id, recipient_name")
     .eq("campaign_id", campaignId)
     .eq("status", "대기")
     .order("id", { ascending: true })

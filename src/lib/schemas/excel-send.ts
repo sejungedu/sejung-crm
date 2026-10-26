@@ -35,6 +35,12 @@ export const ExcelSendInputSchema = z.object({
   subject: z.string().trim().max(120).nullable().default(null),
   body: z.string().trim().min(1, "본문은 필수입니다"),
   isAd: z.boolean().default(false),
+  /** 예약 발송 시각(ISO 8601). null 이면 즉시 발송. 최소 리드타임은 코어에서 검증. */
+  scheduledAt: z
+    .string()
+    .datetime({ offset: true, message: "예약 시각 형식이 올바르지 않습니다" })
+    .nullable()
+    .default(null),
 });
 
 export type ExcelSendInput = z.infer<typeof ExcelSendInputSchema>;

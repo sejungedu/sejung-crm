@@ -38,6 +38,7 @@ import {
   incrementCampaignCost,
 } from "./message-update-helpers";
 import { resolveSenderDivision } from "./resolve-sender-division";
+import { SCHEDULE_MIN_LEAD_MS, SCHEDULE_MIN_LEAD_LABEL } from "./schedule-window";
 import { isDevSeedMode } from "@/lib/profile/students-dev-seed";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { can } from "@/lib/auth/can";
@@ -121,6 +122,20 @@ export async function excelSend(
   // LMS 가 아니면 subject 무시.
   const subject = data.type === "LMS" ? data.subject : null;
 
+  // 예약 발송: '예약됨' + '대기' 로 적재만 하고 cron(dispatch-scheduled)이 시각 도래 시
+  // drain 을 킥한다(일반 발송의 자체 지연발송과 동일). sendon 에 아무것도 넘기지
+  // 않으므로 발송 전까지 즉시 취소된다.
+  const scheduledAt = data.scheduledAt ? new Date(data.scheduledAt) : null;
+  if (scheduledAt && scheduledAt.getTime() < Date.now() + SCHEDULE_MIN_LEAD_MS) {
+    return withSkips(
+      {
+        status: "failed",
+        reason: `예약 시각은 지금부터 최소 ${SCHEDULE_MIN_LEAD_LABEL} 이후여야 합니다`,
+      },
+      { skippedInvalid: 0, skippedUnsub: 0, deduped: 0 },
+    );
+  }
+
   // 3) phone 정규화 + 휴대폰 형식 검증. 잘못된 번호 제외(skippedInvalid).
   const valid: ExcelRecipientNormalized[] = [];
   let skippedInvalid = 0;
@@ -176,7 +191,7 @@ export async function excelSend(
     body: data.body,
     isAd: data.isAd,
     brand: branchBrandName(user.branch, sendDivision),
-    scheduledAt: new Date(),
+    scheduledAt: scheduledAt ?? new Date(),
     recipients,
     unsubscribedPhones,
   });
@@ -221,9 +236,9 @@ export async function excelSend(
     title: `[엑셀] ${shortenForTitle(data.body)}`,
     template_id: null,
     group_id: null,
-    scheduled_at: null,
-    sent_at: new Date().toISOString(),
-    status: "발송중",
+    scheduled_at: scheduledAt ? scheduledAt.toISOString() : null,
+    sent_at: scheduledAt ? null : new Date().toISOString(),
+    status: scheduledAt ? "예약됨" : "발송중",
     total_recipients: totalRecipients,
     total_cost: 0,
     created_by: user.user_id,
@@ -308,6 +323,24 @@ export async function excelSend(
     await safeUpdateCampaignStatus(supabase, campaignId, "실패", queued.reason);
     return withSkips(
       { status: "failed", reason: queued.reason },
+      {
+        skippedInvalid,
+        skippedUnsub: unsubscribed.length,
+        deduped: dedupedCount,
+      },
+    );
+  }
+
+  // 예약 발송은 적재까지만 — 발송은 cron 이 예약 시각에 drain 으로 진행한다.
+  if (scheduledAt) {
+    revalidatePath("/campaigns");
+    revalidatePath(`/campaigns/${campaignId}`);
+    return withSkips(
+      {
+        status: "scheduled",
+        campaignId,
+        scheduledAt: scheduledAt.toISOString(),
+      },
       {
         skippedInvalid,
         skippedUnsub: unsubscribed.length,
@@ -532,6 +565,8 @@ async function insertEligibleMessages(
       campaign_id: campaignId,
       student_id: null,
       phone: r.phone,
+      // 예약 발송 시 drain 이 {이름} 을 채울 때 쓴다(학생 연결 없음).
+      recipient_name: r.name || null,
       status: "대기",
       vendor_message_id: null,
       cost: 0,
