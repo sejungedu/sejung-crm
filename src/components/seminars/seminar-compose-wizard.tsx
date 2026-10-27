@@ -95,6 +95,7 @@ const DEBOUNCE_MS = 300;
 const DIVISION_LABELS: Partial<Record<Division, string>> = {
   본원: "본원 (세정학원)",
   수학관: "수학관 (세정학원 수학관)",
+  중등관: "중등관 (세정학원 중등관)",
 };
 
 function emptyChipValue(): FilterChipValue {

@@ -105,6 +105,7 @@ const VARIABLE_TOKENS: Array<{ token: string; label: string }> = [
 const DIVISION_LABELS: Partial<Record<Division, string>> = {
   본원: "본원 (세정학원)",
   수학관: "수학관 (세정학원 수학관)",
+  중등관: "중등관 (세정학원 중등관)",
 };
 
 const INPUT_CLASS = `

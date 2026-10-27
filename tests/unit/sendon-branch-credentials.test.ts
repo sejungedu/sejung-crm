@@ -132,6 +132,13 @@ describe("sendonFromNumber · 발신 division 축 (대치 본원/수학관)", ()
       expect(sendonFromNumber("대치", "수학관")).toBe("0262651010");
     });
 
+    it("(반포, 중등관) → SENDON_FROM_NUMBER_BANPO_MIDDLE, 계정은 반포", () => {
+      vi.stubEnv("SENDON_FROM_NUMBER_BANPO", "0262420909");
+      vi.stubEnv("SENDON_FROM_NUMBER_BANPO_MIDDLE", "010-8942-3488");
+      expect(sendonFromNumber("반포", "중등관")).toBe("01089423488");
+      expect(sendonFromNumber("반포", "본원")).toBe("0262420909");
+    });
+
     it("본원 번호와 수학관 번호는 서로 다른 값으로 해석", () => {
       vi.stubEnv("SENDON_FROM_NUMBER", "0212340000");
       vi.stubEnv("SENDON_FROM_NUMBER_DAECHI", "025670606");

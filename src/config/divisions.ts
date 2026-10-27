@@ -13,8 +13,8 @@
 
 import type { Branch } from "./branches";
 
-/** 발신 division 목록. 본원=기본, 수학관=대치 수학관(향후 다른 분원 확장 가능). */
-export const DIVISIONS = ["본원", "수학관"] as const;
+/** 발신 division 목록. 본원=기본, 수학관=대치 수학관, 중등관=반포 중등관(2026-10-27). */
+export const DIVISIONS = ["본원", "수학관", "중등관"] as const;
 export type Division = (typeof DIVISIONS)[number];
 
 /** 기본 division. NULL/미지정은 항상 본원으로 해석한다. */
@@ -22,11 +22,12 @@ export const DEFAULT_DIVISION: Division = "본원";
 
 /**
  * 분원별 사용 가능한 division 목록.
- * 미등록 분원은 기본 [본원] 만. 대치는 본원 + 수학관.
+ * 미등록 분원은 기본 [본원] 만. 대치는 본원 + 수학관, 반포는 본원 + 중등관.
  * 향후 송도 수학관 등은 여기에 분원 키를 추가하면 된다.
  */
 const BRANCH_DIVISIONS: Partial<Record<Branch, readonly Division[]>> = {
   대치: ["본원", "수학관"],
+  반포: ["본원", "중등관"],
 };
 
 /**

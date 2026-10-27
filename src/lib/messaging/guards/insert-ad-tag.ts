@@ -41,6 +41,7 @@ const BRANCH_BRAND: Record<string, string> = {
  */
 const DIVISION_BRAND_SUFFIX: Record<string, string> = {
   수학관: " 수학관",
+  중등관: " 중등관",
 };
 
 /**

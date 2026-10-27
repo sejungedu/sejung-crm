@@ -59,6 +59,7 @@ describe("branchBrandName · 발신 division 축 (대치 본원/수학관)", () 
   describe("경계값 · 비대치 분원 + 수학관 (UI 미노출이나 계약상 합리적)", () => {
     it("(송도, 수학관) → '송도 세정학원 수학관'", () => {
       expect(branchBrandName("송도", "수학관")).toBe("송도 세정학원 수학관");
+      expect(branchBrandName("반포", "중등관")).toBe("반포 세정학원 중등관");
     });
 
     it("(미지정, 수학관) → 기본 브랜드 + 접미", () => {

@@ -16,7 +16,7 @@ import {
 
 describe("divisions · 상수", () => {
   it("DIVISIONS 는 [본원, 수학관], 기본은 본원", () => {
-    expect(DIVISIONS).toEqual(["본원", "수학관"]);
+    expect(DIVISIONS).toEqual(["본원", "수학관", "중등관"]);
     expect(DEFAULT_DIVISION).toBe("본원");
   });
 });
@@ -26,6 +26,10 @@ describe("branchDivisions · 분원별 선택 가능한 division", () => {
     it("대치 → [본원, 수학관]", () => {
       expect(branchDivisions("대치")).toEqual(["본원", "수학관"]);
     });
+
+    it("반포 → [본원, 중등관]", () => {
+      expect(branchDivisions("반포")).toEqual(["본원", "중등관"]);
+    });
   });
 
   describe("division 이 없는 분원", () => {
@@ -33,8 +37,7 @@ describe("branchDivisions · 분원별 선택 가능한 division", () => {
       expect(branchDivisions("송도")).toEqual(["본원"]);
     });
 
-    it("반포·방배 → [본원]만", () => {
-      expect(branchDivisions("반포")).toEqual(["본원"]);
+    it("방배 → [본원]만", () => {
       expect(branchDivisions("방배")).toEqual(["본원"]);
     });
   });

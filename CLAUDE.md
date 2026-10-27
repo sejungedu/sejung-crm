@@ -88,10 +88,10 @@ architect → [backend-dev, frontend-dev (병렬)] → qa-engineer
   `SENDON_API_KEY_SONGDO` 등록 필요.
 - **발신 division 축** (2026-07-15): 같은 분원 내에서 발신번호·표시 브랜드명을 나눈다
   (대치 본원 vs 대치 수학관). `branch` 는 sendon **계정**을, `division` 은 **발신번호와
-  브랜드명**을 결정하는 2축 모델. division 정의는 `src/config/divisions.ts` (`본원` / `수학관`).
+  브랜드명**을 결정하는 2축 모델. division 정의는 `src/config/divisions.ts` (`본원` / `수학관` / `중등관`).
   단일 소스는 `src/config/sender-numbers.ts` 의 **`sendonFromNumber(branch, division)`** — 인자 2개.
   발신번호 env(값은 하이픈 없는 숫자): `SENDON_FROM_NUMBER_DAECHI`(대치 본원) /
-  `_DAECHI_MATH`(대치 수학관) / `_BANPO` / `_BANGBAE` / `_SONGDO`.
+  `_DAECHI_MATH`(대치 수학관) / `_BANPO` / `_BANPO_MIDDLE`(반포 중등관) / `_BANGBAE` / `_SONGDO`.
   발송 경로(drain/test/resend/excel/seminar)는 모두 캠페인의 분원·division 을 넘겨 이 함수로 해석.
   비마스터 계정은 `crm_users_profile.sender_division` 으로 명의가 서버에서 강제 고정된다
   (`resolveSenderDivision`). 마스터만 발송 시 선택 가능.
@@ -102,6 +102,7 @@ architect → [backend-dev, frontend-dev (병렬)] → qa-engineer
   | 대치 | — | 정상 | 2026-06-17 · 발송 실적으로 확인 |
   | 송도 | `032-858-0005` | 정상 (2026-07-06 등록) | 2026-09-14 · 콘솔 |
   | 반포 | `02-6242-0909` | 정상 | 2026-10-19 · 콘솔 |
+| 반포 중등관 | `010-8942-3488` | 정상 | 2026-10-27 · 운영 보고 |
   | 방배 | `02-532-6552` | 정상 | 2026-10-19 · 콘솔 |
   | 동탄 | `031-8043-5911` | 정상 (2026-10-20 등록) | 2026-10-20 · 콘솔 |
 
