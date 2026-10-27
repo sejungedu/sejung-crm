@@ -19,6 +19,7 @@ import {
   type FilterChipValue,
   type FilterSubject,
 } from "@/components/groups/filter-chip-panel";
+import { branchBrandName } from "@/lib/messaging/guards";
 import { SeminarComposeStep1Seminars } from "./seminar-compose-step-1-seminars";
 import { SeminarComposeStep2Target } from "./seminar-compose-step-2-target";
 import { SeminarComposeStep3Body } from "./seminar-compose-step-3-body";
@@ -87,16 +88,6 @@ interface Props {
 }
 
 const DEBOUNCE_MS = 300;
-
-/**
- * 발신 division 표시 라벨(일반 compose 와 동일). 발신번호는 하드코딩하지 않는다
- * (서버가 division 으로 해석). 미등록 division 은 값 그대로 폴백.
- */
-const DIVISION_LABELS: Partial<Record<Division, string>> = {
-  본원: "본원 (세정학원)",
-  수학관: "수학관 (세정학원 수학관)",
-  중등관: "중등관 (세정학원 중등관)",
-};
 
 function emptyChipValue(): FilterChipValue {
   return {
@@ -351,7 +342,7 @@ export function SeminarComposeWizard({
           >
             {availableDivisions.map((d) => (
               <option key={d} value={d}>
-                {DIVISION_LABELS[d] ?? d}
+                {branchBrandName(branch, d)}
               </option>
             ))}
           </select>

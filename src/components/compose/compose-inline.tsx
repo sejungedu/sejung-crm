@@ -97,17 +97,6 @@ const VARIABLE_TOKENS: Array<{ token: string; label: string }> = [
   { token: "{날짜}", label: "{날짜}" },
 ];
 
-/**
- * 발신 division 옵션 표시 라벨. 값 그대로 + 이해를 돕는 부가 설명(표시명 수준).
- * 발신번호는 하드코딩하지 않는다(서버가 division 으로 해석). 미등록 division 은
- * 값 그대로 폴백해 division 확장 시 이 파일 수정 없이도 동작한다.
- */
-const DIVISION_LABELS: Partial<Record<Division, string>> = {
-  본원: "본원 (세정학원)",
-  수학관: "수학관 (세정학원 수학관)",
-  중등관: "중등관 (세정학원 중등관)",
-};
-
 const INPUT_CLASS = `
   w-full h-11 rounded-lg px-3
   bg-bg-card border border-[color:var(--border)]
@@ -902,7 +891,7 @@ export function ComposeInline({
           >
             {availableDivisions.map((d) => (
               <option key={d} value={d}>
-                {DIVISION_LABELS[d] ?? d}
+                {branchBrandName(branch, d)}
               </option>
             ))}
           </select>
