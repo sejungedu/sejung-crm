@@ -116,6 +116,11 @@ export interface PreviewRecipientsInput {
    * 그룹 기반 발송은 division 개념이 없어 항상 본원. 필터 기반(compose)만 전달한다.
    */
   senderDivision?: Division | null;
+  /**
+   * 발신 분원(sendon 계정·발신번호·브랜드명). 생략 = branch 와 동일.
+   * 마스터 교차 발신(0137)만 다른 값 — 호출부가 resolveSenderBranch 로 확정해 넘긴다.
+   */
+  senderBranch?: string;
   body: string;
   isAd: boolean;
   type: "SMS" | "LMS" | "ALIMTALK";
@@ -161,6 +166,8 @@ interface PreviewGroupLike {
   branch: string;
   /** 발신 division. null = 본원(그룹 기반은 항상 null). 발신 브랜드 해석용. */
   division: Division | null;
+  /** 발신 분원(브랜드 해석용). 교차 발신이 아니면 branch 와 같다. */
+  senderBranch: string;
   filters: GroupFilters;
 }
 
@@ -177,6 +184,7 @@ async function resolvePreviewGroup(
       id: null,
       branch: input.branch,
       division: input.senderDivision ?? null,
+      senderBranch: input.senderBranch ?? input.branch,
       filters: input.filters,
     };
   }
@@ -190,6 +198,7 @@ async function resolvePreviewGroup(
       id: group.id,
       branch: group.branch,
       division: null,
+      senderBranch: group.branch,
       filters: group.filters,
     };
   }
@@ -243,7 +252,7 @@ function previewFromDevSeed(
   const guarded = applyAllGuards({
     body: input.body,
     isAd: input.isAd,
-    brand: branchBrandName(group.branch, group.division),
+    brand: branchBrandName(group.senderBranch, group.division),
     scheduledAt: input.scheduledAt ?? new Date(),
     recipients: legs,
     unsubscribedPhones: [], // dev-seed 미보유
@@ -302,7 +311,7 @@ async function previewFromSupabase(
   const withHeader = insertSenderHeader(
     input.body,
     input.isAd,
-    branchBrandName(group.branch, group.division),
+    branchBrandName(group.senderBranch, group.division),
   );
   const finalBody = insertUnsubscribeFooter(withHeader, input.isAd);
   const quiet = checkQuietHours(input.scheduledAt ?? new Date(), input.isAd);

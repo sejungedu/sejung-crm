@@ -40,6 +40,11 @@ export const ComposeStep1Schema = z.object({
    * 선택지·검증은 config/divisions 의 branchDivisions(branch) 를 단일 소스로 한다.
    */
   senderDivision: z.enum(DIVISIONS).optional(),
+  /**
+   * 발신 분원(마스터 교차 발신). 생략 = branch. 비마스터 값은 서버가 무시한다
+   * (resolveSenderBranch). 예: 대치 학생에게 반포 중등관 번호로.
+   */
+  senderBranch: z.string().trim().min(1).max(20).optional(),
 });
 export type ComposeStep1 = z.infer<typeof ComposeStep1Schema>;
 
@@ -159,6 +164,8 @@ export const TestSendInputSchema = z.object({
   branch: z.string().trim().min(1).max(20).optional(),
   /** 발신 division. 미지정/생략 = 본원. 발신번호·브랜드 해석용(compose step1 과 동일 의미). */
   senderDivision: z.enum(DIVISIONS).optional(),
+  /** 발신 분원(마스터 교차 발신). 생략 = branch. compose step1 과 동일 의미. */
+  senderBranch: z.string().trim().min(1).max(20).optional(),
 });
 export type TestSendInput = z.infer<typeof TestSendInputSchema>;
 

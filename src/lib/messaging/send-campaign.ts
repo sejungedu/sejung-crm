@@ -59,6 +59,11 @@ export interface SendCampaignInput {
    * campaigns.sender_division 에 저장되고 drain 이 발송 시 다시 읽어 관통한다.
    */
   senderDivision?: Division;
+  /**
+   * 발신 분원(sendon 계정·발신번호·브랜드명). 생략 = branch 와 동일.
+   * 마스터 교차 발신(0137)만 다른 값 — 호출부가 resolveSenderBranch 로 확정해 넘긴다.
+   */
+  senderBranch?: string;
   /** null 이면 inline 본문 (템플릿 미사용). */
   templateId: string | null;
   body: string;
@@ -202,6 +207,7 @@ export async function sendCampaign(
       filters: target.filters,
       branch: target.branch,
       senderDivision: input.senderDivision ?? null,
+      senderBranch: input.senderBranch,
       body: input.body,
       isAd: input.isAd,
       type: input.type,
@@ -306,6 +312,7 @@ async function runImmediateSend(args: {
     filters: target.filters,
     branch: target.branch,
     senderDivision: input.senderDivision ?? null,
+    senderBranch: input.senderBranch,
     body: input.body,
     isAd: input.isAd,
     dedupeByPhone: input.dedupeByPhone,
@@ -349,6 +356,11 @@ async function runImmediateSend(args: {
     send_to_student: targets.sendToStudent,
     // NULL = 본원 기본. drain 이 발송 시 다시 읽어 발신번호·브랜드로 관통한다.
     sender_division: input.senderDivision ?? null,
+    // 발신 분원(0137) — 마스터 교차 발신일 때만 기록. NULL = branch 와 같음.
+    sender_branch:
+      input.senderBranch && input.senderBranch !== branch
+        ? input.senderBranch
+        : null,
     // 발송 대상 조건 스냅샷(0121) — "같은 조건으로 다시 보내기" 의 단일 소스.
     // 그룹 기반 발송도 해석된 filters 를 저장해 그룹이 나중에 바뀌어도 재현된다.
     send_filters: target.filters,
@@ -539,6 +551,8 @@ async function reloadEligibleRecipients(args: {
   branch: string;
   /** 발신 division. null/생략 = 본원(발신 브랜드 해석). */
   senderDivision: Division | null;
+  /** 발신 분원(브랜드 해석). 생략 = branch. */
+  senderBranch?: string;
   body: string;
   isAd: boolean;
   dedupeByPhone: boolean;
@@ -591,7 +605,7 @@ async function reloadEligibleRecipients(args: {
   const guarded = applyAllGuards({
     body: args.body,
     isAd: args.isAd,
-    brand: branchBrandName(args.branch, args.senderDivision),
+    brand: branchBrandName(args.senderBranch ?? args.branch, args.senderDivision),
     scheduledAt: args.scheduledAt,
     recipients: eligibleLegs,
     unsubscribedPhones: [],

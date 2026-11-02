@@ -67,6 +67,8 @@ export async function resendCampaignSameFilters(
     filters: parsedFilters.data,
     branch: campaign.branch,
     senderDivision: campaign.sender_division ?? undefined,
+    // 교차 발신(0137) 캠페인은 같은 발신 분원으로 재현한다.
+    senderBranch: campaign.sender_branch ?? undefined,
     templateId: campaign.template_id,
     body: campaign.body,
     subject: campaign.subject,

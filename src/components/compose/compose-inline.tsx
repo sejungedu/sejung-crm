@@ -24,6 +24,7 @@ import {
   DEFAULT_DIVISION,
   type Division,
 } from "@/config/divisions";
+import { BRANCHES } from "@/config/branches";
 import type { GroupFilters } from "@/lib/schemas/group";
 import { isEmptyFilterCohort } from "@/lib/schemas/group";
 import type { PreviewResult } from "@/lib/messaging/preview-recipients";
@@ -262,9 +263,26 @@ export function ComposeInline({
   // 발신 division(발신 명의). 분원이 2개 이상 division 을 가질 때만 선택 노출
   // (현재 대치=본원/수학관, 나머지 분원=본원 단일 → 컨트롤 숨김).
   const availableDivisions = useMemo(() => branchDivisions(branch), [branch]);
-  const showDivisionSelect = availableDivisions.length > 1;
   // 비마스터(lockedDivision 존재)면 셀렉트를 이 값으로 고정·비활성화한다.
   const divisionLocked = lockedDivision != null;
+  // 마스터는 모든 분원의 번호 중에서 고른다(교차 발신, 0137). 예: 대치 학생에게
+  // 반포 중등관 번호로. 발신 분원이 sendon 계정·번호·브랜드명을 정한다.
+  const canPickAnySender = !divisionLocked;
+  const showDivisionSelect = canPickAnySender || availableDivisions.length > 1;
+  const senderOptions = useMemo(
+    () =>
+      canPickAnySender
+        ? BRANCHES.flatMap((b) =>
+            branchDivisions(b).map((d) => ({ branch: b as string, division: d })),
+          )
+        : availableDivisions.map((d) => ({ branch, division: d })),
+    [canPickAnySender, availableDivisions, branch],
+  );
+  const [senderBranch, setSenderBranch] = useState<string>(branch);
+  // 수신 분원이 바뀌면 발신도 그 분원 기본 명의로 되돌린다(교차 발신은 매번 명시 선택).
+  useEffect(() => {
+    setSenderBranch(branch);
+  }, [branch]);
   // 초기값: 잠금이면 계정 명의, 아니면 기본(본원).
   const [senderDivision, setSenderDivision] = useState<Division>(
     lockedDivision ?? DEFAULT_DIVISION,
@@ -272,14 +290,15 @@ export function ComposeInline({
   // 분원이 바뀌어 현재 선택값이 그 분원에서 무효면 리셋한다. 잠금이면 계정
   // 명의(그 분원에서 유효할 때)를, 아니면 기본(본원)을 우선한다.
   useEffect(() => {
-    if (!availableDivisions.includes(senderDivision)) {
+    const allowed = branchDivisions(senderBranch);
+    if (!allowed.includes(senderDivision)) {
       const next =
-        lockedDivision && availableDivisions.includes(lockedDivision)
+        lockedDivision && allowed.includes(lockedDivision)
           ? lockedDivision
           : DEFAULT_DIVISION;
       setSenderDivision(next);
     }
-  }, [availableDivisions, senderDivision, lockedDivision]);
+  }, [senderBranch, senderDivision, lockedDivision]);
 
   const bodyRef = useRef<HTMLTextAreaElement>(null);
 
@@ -490,7 +509,7 @@ export function ComposeInline({
       setPreviewError(null);
       startPreview(async () => {
         try {
-          const step1 = { filters, branch, senderDivision };
+          const step1 = { filters, branch, senderBranch, senderDivision };
           const r = await previewAction({
             step1,
             step2: {
@@ -540,8 +559,8 @@ export function ComposeInline({
   const subjectOverflow = subjectBytes > SUBJECT_BYTE_LIMIT;
 
   const brandName = useMemo(
-    () => branchBrandName(branch, senderDivision),
-    [branch, senderDivision],
+    () => branchBrandName(senderBranch, senderDivision),
+    [senderBranch, senderDivision],
   );
   const clientFinalBody = useMemo(() => {
     const withHeader = insertSenderHeader(step2.body, step2.isAd, brandName);
@@ -820,7 +839,7 @@ export function ComposeInline({
   const confirmSend = () => {
     setConfirmOpen(false);
     setSendError(null);
-    const step1Payload = { filters, branch, senderDivision };
+    const step1Payload = { filters, branch, senderBranch, senderDivision };
     const step2Payload = {
       templateId: step2.templateId,
       type: step2.type,
@@ -879,26 +898,35 @@ export function ComposeInline({
           </label>
           <select
             id="compose-division"
-            value={senderDivision}
+            value={`${senderBranch}|${senderDivision}`}
             disabled={divisionLocked}
             title={
               divisionLocked
                 ? "발신 명의는 계정에 지정된 값으로 고정됩니다"
                 : undefined
             }
-            onChange={(e) => setSenderDivision(e.target.value as Division)}
+            onChange={(e) => {
+              const [b, d] = e.target.value.split("|");
+              setSenderBranch(b);
+              setSenderDivision(d as Division);
+            }}
             className="h-10 rounded-md px-2.5 bg-bg-card border border-[color:var(--border)] text-[15px] text-[color:var(--text)] focus:outline-none focus:border-[color:var(--border-strong)] cursor-pointer disabled:bg-[color:var(--bg-muted)] disabled:text-[color:var(--text-muted)] disabled:cursor-not-allowed"
           >
-            {availableDivisions.map((d) => (
-              <option key={d} value={d}>
-                {branchBrandName(branch, d)}
+            {senderOptions.map((o) => (
+              <option
+                key={`${o.branch}|${o.division}`}
+                value={`${o.branch}|${o.division}`}
+              >
+                {branchBrandName(o.branch, o.division)}
               </option>
             ))}
           </select>
           <span className="text-[12px] text-[color:var(--text-dim)]">
             {divisionLocked
               ? "계정에 지정된 발신 명의로 고정됩니다."
-              : "선택한 명의로 발신번호·표시명이 정해집니다."}
+              : senderBranch !== branch
+                ? `${branch} 학생에게 ${senderBranch} 번호로 보냅니다. 문자비는 ${senderBranch} 계정에서 차감됩니다.`
+                : "선택한 명의로 발신번호·표시명이 정해집니다."}
           </span>
         </div>
       )}
@@ -1033,7 +1061,7 @@ export function ComposeInline({
             subject={step2.subject ?? null}
             body={step2.body}
             isAd={step2.isAd}
-            branch={branch}
+            branch={senderBranch}
             senderDivision={senderDivision}
             disabled={!step2.body.trim()}
           />

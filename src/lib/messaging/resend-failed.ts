@@ -39,7 +39,7 @@ import {
   updateMessage,
   safeUpdateCampaignStatus,
   incrementCampaignCost,
-  loadCampaignSenderDivision,
+  loadCampaignSender,
 } from "./message-update-helpers";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
@@ -95,7 +95,8 @@ export async function resendFailedMessages(
 
   // 발신 division — 캠페인 레코드 기준(NULL/미설정=본원). getCampaign 이 필드를
   // 떨구므로 별도 정규화 조회. 발신번호·브랜드로 관통(무회귀).
-  const senderDivision = await loadCampaignSenderDivision(supabase, campaignId);
+  const sender = await loadCampaignSender(supabase, campaignId);
+  const senderDivision = sender.division;
 
   // 3) 실패 메시지만 조회 (is_test 제외 — 테스트 발송 캠페인은 별도 처리)
   const { data: failedRows, error: fetchError } = await supabase
@@ -144,7 +145,7 @@ export async function resendFailedMessages(
   const guarded = applyAllGuards({
     body: template.body,
     isAd: template.is_ad,
-    brand: branchBrandName(campaign.branch, senderDivision),
+    brand: branchBrandName(sender.branch, senderDivision),
     scheduledAt: new Date(),
     recipients,
     unsubscribedPhones,
@@ -218,9 +219,9 @@ export async function resendFailedMessages(
     }
   }
 
-  const adapter = createSmsAdapter(campaign.branch, senderDivision);
+  const adapter = createSmsAdapter(sender.branch, senderDivision);
   // 분원×division별 발신번호 — 재발송 대상 캠페인 기준.
-  const fromNumber = readFromNumber(adapter.name, campaign.branch, senderDivision);
+  const fromNumber = readFromNumber(adapter.name, sender.branch, senderDivision);
   if (!fromNumber) {
     return {
       status: "failed",

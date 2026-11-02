@@ -55,7 +55,7 @@ import {
 } from "@/lib/seminars/dispatch-broadcast";
 import { sendonFromNumber } from "@/config/sender-numbers";
 import type { Division } from "@/config/divisions";
-import { campaignSenderDivision } from "./message-update-helpers";
+import { campaignSender } from "./message-update-helpers";
 import { isSlackEnabled } from "@/lib/notify/slack";
 import type {
   CampaignRow,
@@ -150,12 +150,14 @@ export async function drainCampaignChunk(
     : null;
 
   // 발신 division — 캠페인 레코드 기준(NULL/미설정=본원, 무회귀). 발신번호·브랜드 관통.
-  const senderDivision = campaignSenderDivision(campaign);
+  // 발신 분원 — 마스터 교차 발신이면 sender_branch, 아니면 수신 분원(branch).
+  const sender = campaignSender(campaign);
+  const senderDivision = sender.division;
 
   let hasName: boolean;
   let sendBody: string;
   // 발신 브랜드명 — 캠페인 분원×division 기준(대치 본원="세정학원", 수학관="세정학원 수학관").
-  const brand = branchBrandName(campaign.branch, senderDivision);
+  const brand = branchBrandName(sender.branch, senderDivision);
   if (inviteMode) {
     // {초대링크} → #{이름}(sendon name 슬롯) — createSeminarBroadcastAction 과 동일 규칙.
     const withPlaceholder = applyInviteLinkToken(campaign.body);
@@ -179,9 +181,9 @@ export async function drainCampaignChunk(
     // 본문은 hasName 일 때만 sendon 치환 문법으로 변환 — 외 경우 그대로 송출.
     sendBody = hasName ? toSendonNameSyntax(guardedBody) : guardedBody;
   }
-  const adapter = createSmsAdapter(campaign.branch, senderDivision);
+  const adapter = createSmsAdapter(sender.branch, senderDivision);
   // 분원×division별 발신번호 — 캠페인 기준(미설정 분원/division 은 본원 번호로 폴백).
-  const fromNumber = readFromNumber(adapter.name, campaign.branch, senderDivision);
+  const fromNumber = readFromNumber(adapter.name, sender.branch, senderDivision);
   if (!fromNumber) {
     const reason = "발신번호 환경변수가 설정되어 있지 않습니다";
     await updateCampaignStatus(supabase, campaignId, "실패", reason);

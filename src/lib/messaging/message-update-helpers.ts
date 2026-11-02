@@ -33,6 +33,39 @@ export function campaignSenderDivision(row: unknown): Division | null {
   return isDivision(raw) ? raw : null;
 }
 
+/** 캠페인의 발신 정체성 — sendon 계정·발신번호·브랜드명을 정하는 (분원, division). */
+export interface CampaignSender {
+  branch: string;
+  division: Division | null;
+}
+
+/**
+ * 캠페인 행의 발신 정체성. sender_branch(마스터 교차 발신, 0137)가 있으면 그 분원,
+ * 없으면 수신 분원(branch)과 같다 — 기존 캠페인은 무회귀.
+ */
+export function campaignSender(row: unknown): CampaignSender {
+  const r = row as { branch?: unknown; sender_branch?: unknown } | null;
+  const own = typeof r?.branch === "string" ? r.branch : "";
+  const sb = r?.sender_branch;
+  return {
+    branch: typeof sb === "string" && sb.length > 0 ? sb : own,
+    division: campaignSenderDivision(row),
+  };
+}
+
+/** 캠페인의 발신 정체성을 DB 에서 읽는다(getCampaign 이 필드를 떨구는 경로용). */
+export async function loadCampaignSender(
+  supabase: SupabaseSrv,
+  campaignId: string,
+): Promise<CampaignSender> {
+  const { data } = await supabase
+    .from("crm_campaigns")
+    .select("*")
+    .eq("id", campaignId)
+    .maybeSingle();
+  return campaignSender(data);
+}
+
 /**
  * 캠페인의 sender_division 만 정규화해 반환. getCampaign 이 필드를 떨구는 재발송
  * 경로에서 사용. select("*") 로 읽어 컬럼 부재(마이그 적용 전)에도 안전(null=본원).

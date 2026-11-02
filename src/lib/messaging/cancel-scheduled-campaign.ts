@@ -89,7 +89,7 @@ export async function cancelScheduledCampaign(
   // 2) sendon 예약 취소 — groupId 단위 병렬(동시성 제한). 하나라도 실패하면
   //    DB 를 바꾸지 않고 중단한다(예약이 그대로 발송될 수 있으므로 명확히 알림).
   //    실제 취소 확인은 동기로 유지(안전 핵심). 병렬화로 왕복이 겹쳐 빠르다.
-  const adapter = createSmsAdapter(campaign.branch);
+  const adapter = createSmsAdapter(campaign.sender_branch ?? campaign.branch);
   const cancelResults: { status: string; reason?: string }[] = [];
   let cursor = 0;
   async function cancelWorker() {

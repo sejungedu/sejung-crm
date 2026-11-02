@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { resolveSenderDivision } from "@/lib/messaging/resolve-sender-division";
+import {
+  resolveSenderBranch,
+  resolveSenderDivision,
+} from "@/lib/messaging/resolve-sender-division";
+import { campaignSender } from "@/lib/messaging/message-update-helpers";
 import type { CurrentUser } from "@/types/database";
 
 /**
@@ -107,5 +111,37 @@ describe("resolveSenderDivision · 계정 발신 명의 서버 잠금", () => {
       expect(result).not.toBeNull();
       expect(result).toBe("본원");
     });
+  });
+});
+
+describe("resolveSenderBranch · 마스터 교차 발신 (0137)", () => {
+  it("마스터는 다른 분원 번호를 고를 수 있다 (대치 학생 → 반포 중등관)", () => {
+    const b = resolveSenderBranch(master, "대치", "반포");
+    expect(b).toBe("반포");
+    expect(resolveSenderDivision(master, b, "중등관")).toBe("중등관");
+  });
+
+  it("비마스터 요청은 무시하고 수신 분원으로 고정", () => {
+    expect(resolveSenderBranch(mainAccount, "대치", "반포")).toBe("대치");
+  });
+
+  it("알 수 없는 분원·미지정은 수신 분원", () => {
+    expect(resolveSenderBranch(master, "대치", "강남")).toBe("대치");
+    expect(resolveSenderBranch(master, "대치", undefined)).toBe("대치");
+  });
+});
+
+describe("campaignSender · 캠페인 발신 정체성", () => {
+  it("sender_branch 가 있으면 그 분원 (계정·번호 기준)", () => {
+    expect(
+      campaignSender({ branch: "대치", sender_branch: "반포", sender_division: "중등관" }),
+    ).toEqual({ branch: "반포", division: "중등관" });
+  });
+
+  it("sender_branch 가 없으면 수신 분원 — 기존 캠페인 무회귀", () => {
+    expect(
+      campaignSender({ branch: "대치", sender_branch: null, sender_division: "수학관" }),
+    ).toEqual({ branch: "대치", division: "수학관" });
+    expect(campaignSender({ branch: "송도" })).toEqual({ branch: "송도", division: null });
   });
 });

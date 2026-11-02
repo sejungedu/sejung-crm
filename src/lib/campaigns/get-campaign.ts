@@ -120,6 +120,8 @@ export async function getCampaign(
     // 본원 번호로 나간다(2026-08-20 발견, 실제 피해 전).
     sender_division: (row.sender_division ??
       null) as CampaignListItem["sender_division"],
+    // 발신 분원(0137). 취소·재예약·재발송이 이 분원의 sendon 계정으로 가야 한다.
+    sender_branch: (row.sender_branch ?? null) as string | null,
     template_name: templateName,
     group_name: groupName,
     delivered_count: 0,

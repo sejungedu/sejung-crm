@@ -368,6 +368,11 @@ export interface CampaignRow {
    * 다루던 값이라 optional (일부 매퍼·dev-seed 가 하이드레이트하지 않음).
    */
   sender_division?: Division | null;
+  /**
+   * 발신 분원(sendon 계정·발신번호·브랜드명 기준). NULL=branch 와 동일. 0137 추가.
+   * 마스터가 다른 분원 번호로 보낸 캠페인만 값이 있다.
+   */
+  sender_branch?: string | null;
   created_at: string;
   updated_at: string;
 }

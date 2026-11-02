@@ -22,6 +22,7 @@ import {
   isDivision,
   type Division,
 } from "@/config/divisions";
+import { BRANCHES } from "@/config/branches";
 import type { CurrentUser } from "@/types/database";
 
 export function resolveSenderDivision(
@@ -45,4 +46,27 @@ export function resolveSenderDivision(
     return own;
   }
   return DEFAULT_DIVISION;
+}
+
+/**
+ * 발송 시 유효 발신 분원(sendon 계정·발신번호·브랜드명 기준) 최종 결정.
+ *
+ * 마스터만 받는 학생의 분원과 다른 분원 번호로 보낼 수 있다(2026-11-02, 예: 대치 학생에게
+ * 반포 중등관 번호). 비마스터는 클라이언트 입력을 무시하고 수신 분원으로 고정된다.
+ * 알 수 없는 분원 값도 수신 분원으로 귀결. division 은 이 결과 분원 기준으로
+ * resolveSenderDivision 에 넘겨 검증한다.
+ */
+export function resolveSenderBranch(
+  user: Pick<CurrentUser, "role">,
+  recipientBranch: string,
+  requested?: string | null,
+): string {
+  if (
+    user.role === "master" &&
+    typeof requested === "string" &&
+    (BRANCHES as readonly string[]).includes(requested)
+  ) {
+    return requested;
+  }
+  return recipientBranch;
 }

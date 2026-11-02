@@ -33,7 +33,10 @@ import {
   type SendCampaignResult,
 } from "@/lib/messaging/send-campaign";
 import { testSend } from "@/lib/messaging/test-send";
-import { resolveSenderDivision } from "@/lib/messaging/resolve-sender-division";
+import {
+  resolveSenderBranch,
+  resolveSenderDivision,
+} from "@/lib/messaging/resolve-sender-division";
 import { isDevSeedMode } from "@/lib/profile/students-dev-seed";
 import { getCurrentUser } from "@/lib/auth/current-user";
 import { can } from "@/lib/auth/can";
@@ -111,6 +114,7 @@ export async function previewAction(
       filters: parsed.step1.filters,
       branch: parsed.step1.branch,
       senderDivision: parsed.step1.senderDivision ?? null,
+      senderBranch: parsed.step1.senderBranch,
       body: parsed.step2.body,
       isAd: parsed.step2.isAd,
       type: parsed.step2.type,
@@ -159,7 +163,12 @@ export async function testSendAction(
   }
 
   // 발신 명의 서버 강제: 비마스터는 클라이언트 입력을 무시하고 계정 고정 명의로.
-  const sendBranch = parsed.branch ?? user.branch;
+  // 마스터만 다른 분원 번호(교차 발신) 허용 — 그 분원 계정·번호로 테스트가 나간다.
+  const sendBranch = resolveSenderBranch(
+    user,
+    parsed.branch ?? user.branch,
+    parsed.senderBranch,
+  );
   const senderDivision = resolveSenderDivision(
     user,
     sendBranch,
@@ -213,9 +222,15 @@ export async function sendNowAction(
   // 발신 명의 서버 강제(getCurrentUser 는 요청 캐시라 추가 왕복 없음).
   const user = await getCurrentUser();
   if (!user) return { status: "failed", reason: "로그인 후 이용 가능합니다" };
-  const senderDivision = resolveSenderDivision(
+  // 발신 분원 — 마스터만 수신 분원과 다른 분원 번호로 보낼 수 있다(0137).
+  const senderBranch = resolveSenderBranch(
     user,
     parsed.step1.branch,
+    parsed.step1.senderBranch,
+  );
+  const senderDivision = resolveSenderDivision(
+    user,
+    senderBranch,
     parsed.step1.senderDivision,
   );
 
@@ -223,6 +238,7 @@ export async function sendNowAction(
     title: parsed.step3.title,
     filters: parsed.step1.filters,
     branch: parsed.step1.branch,
+    senderBranch,
     senderDivision,
     templateId: parsed.step2.templateId ?? null,
     body: parsed.step2.body,
@@ -282,9 +298,15 @@ export async function scheduleAction(
   // 발신 명의 서버 강제(getCurrentUser 는 요청 캐시라 추가 왕복 없음).
   const user = await getCurrentUser();
   if (!user) return { status: "failed", reason: "로그인 후 이용 가능합니다" };
-  const senderDivision = resolveSenderDivision(
+  // 발신 분원 — 마스터만 수신 분원과 다른 분원 번호로 보낼 수 있다(0137).
+  const senderBranch = resolveSenderBranch(
     user,
     parsed.step1.branch,
+    parsed.step1.senderBranch,
+  );
+  const senderDivision = resolveSenderDivision(
+    user,
+    senderBranch,
     parsed.step1.senderDivision,
   );
 
@@ -292,6 +314,7 @@ export async function scheduleAction(
     title: parsed.step3.title,
     filters: parsed.step1.filters,
     branch: parsed.step1.branch,
+    senderBranch,
     senderDivision,
     templateId: parsed.step2.templateId ?? null,
     body: parsed.step2.body,

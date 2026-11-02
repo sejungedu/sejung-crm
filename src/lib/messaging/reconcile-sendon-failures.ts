@@ -49,7 +49,7 @@ export async function reconcileSendonFailures(): Promise<ReconcileResult> {
   // 점검 시각이 된 캠페인만.
   const { data, error } = await supabase
     .from("crm_campaigns")
-    .select("id, title, branch")
+    .select("id, title, branch, sender_branch")
     .not("sendon_check_due_at", "is", null)
     .lte("sendon_check_due_at", nowIso)
     .order("sendon_check_due_at", { ascending: true })
@@ -63,6 +63,7 @@ export async function reconcileSendonFailures(): Promise<ReconcileResult> {
     id: string;
     title: string;
     branch: string;
+    sender_branch: string | null;
   }>;
 
   let checked = 0;
@@ -73,10 +74,10 @@ export async function reconcileSendonFailures(): Promise<ReconcileResult> {
     checked += 1;
 
     const dbFailed = await countDbFailures(supabase, c.id);
-    // 분원별 sendon 계정으로 조회.
+    // 분원별 sendon 계정으로 조회(마스터 교차 발신이면 발신 분원 계정).
     const sendon = await summarizeSendonFailures(
       supabase,
-      createSmsAdapter(c.branch),
+      createSmsAdapter(c.sender_branch ?? c.branch),
       c.id,
     );
     const total = dbFailed.count + sendon.failed;
