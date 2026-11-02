@@ -24,6 +24,9 @@ import { ComposeInline } from "@/components/compose/compose-inline";
 import { DEFAULT_DIVISION, type Division } from "@/config/divisions";
 import type { TemplateRow } from "@/types/database";
 
+/** 마스터 "전체" 선택 — 전 분원 DB 대상(검색 RPC 가 '전체' 를 분원 조건 없음으로 해석). */
+const ALL_BRANCHES = "전체";
+
 /**
  * F3 · 새 발송 작성 (/compose)
  *
@@ -191,12 +194,15 @@ export default async function ComposePage({
   const prefill = await resolvePrefill(await searchParams);
 
   // 분원 결정: prefill 이 있으면 그 분원, 없으면 master 는 사이드바 선택 분원(없으면
-  // 본인), 그 외 본인 분원.
+  // "전체" = 전 분원 DB, 2026-11-02), 그 외 본인 분원. master 의 user.branch 는
+  // '마스터' 라 학생이 없으므로 대상 분원으로 쓰지 않는다.
   const branch =
     prefill?.branch ??
     (currentUser.role === "master"
-      ? ((await getSelectedBranch()) ?? currentUser.branch)
+      ? ((await getSelectedBranch()) ?? ALL_BRANCHES)
       : currentUser.branch);
+  // 옵션 조회용 — 전체면 분원 조건 없음.
+  const optionBranch = branch === ALL_BRANCHES ? undefined : branch;
   const canPickBranch = currentUser.role === "master";
 
   // 발신 명의 잠금: 마스터는 발송 시 명의를 직접 고를 수 있으므로 잠금 없음(null).
@@ -218,9 +224,9 @@ export default async function ComposePage({
   const [schoolOptions, filterOptions, classOptions, templatesResult] =
     await Promise.all([
       getSchoolOptions(branch),
-      listStudentFilterOptions({ branch, includeHidden: true }),
+      listStudentFilterOptions({ branch: optionBranch, includeHidden: true }),
       listClassOptions(branch),
-      listTemplates({ q: "", branch: branch || undefined, page: 1 }),
+      listTemplates({ q: "", branch: optionBranch || undefined, page: 1 }),
     ]);
 
   const templates: TemplateRow[] = templatesResult.items;

@@ -33,6 +33,7 @@ import {
   type SendCampaignResult,
 } from "@/lib/messaging/send-campaign";
 import { testSend } from "@/lib/messaging/test-send";
+import { BRANCHES } from "@/config/branches";
 import {
   resolveSenderBranch,
   resolveSenderDivision,
@@ -169,6 +170,9 @@ export async function testSendAction(
     parsed.branch ?? user.branch,
     parsed.senderBranch,
   );
+  if (!(BRANCHES as readonly string[]).includes(sendBranch)) {
+    return { status: "failed", reason: "발신 명의(번호)를 선택하세요" };
+  }
   const senderDivision = resolveSenderDivision(
     user,
     sendBranch,
@@ -228,6 +232,10 @@ export async function sendNowAction(
     parsed.step1.branch,
     parsed.step1.senderBranch,
   );
+  // 전체(전 분원) 발송은 발신 분원이 정해지지 않으면 기본 계정으로 새므로 막는다.
+  if (!(BRANCHES as readonly string[]).includes(senderBranch)) {
+    return { status: "failed", reason: "발신 명의(번호)를 선택하세요" };
+  }
   const senderDivision = resolveSenderDivision(
     user,
     senderBranch,
@@ -304,6 +312,10 @@ export async function scheduleAction(
     parsed.step1.branch,
     parsed.step1.senderBranch,
   );
+  // 전체(전 분원) 발송은 발신 분원이 정해지지 않으면 기본 계정으로 새므로 막는다.
+  if (!(BRANCHES as readonly string[]).includes(senderBranch)) {
+    return { status: "failed", reason: "발신 명의(번호)를 선택하세요" };
+  }
   const senderDivision = resolveSenderDivision(
     user,
     senderBranch,

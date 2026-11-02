@@ -912,6 +912,12 @@ export function ComposeInline({
             }}
             className="h-10 rounded-md px-2.5 bg-bg-card border border-[color:var(--border)] text-[15px] text-[color:var(--text)] focus:outline-none focus:border-[color:var(--border-strong)] cursor-pointer disabled:bg-[color:var(--bg-muted)] disabled:text-[color:var(--text-muted)] disabled:cursor-not-allowed"
           >
+            {/* 전체(전 분원) 발송은 번호를 직접 골라야 한다 — 기본값 없음. */}
+            {!senderOptions.some((o) => o.branch === senderBranch) && (
+              <option value={`${senderBranch}|${senderDivision}`} disabled>
+                발신 번호를 선택하세요
+              </option>
+            )}
             {senderOptions.map((o) => (
               <option
                 key={`${o.branch}|${o.division}`}
@@ -924,8 +930,10 @@ export function ComposeInline({
           <span className="text-[12px] text-[color:var(--text-dim)]">
             {divisionLocked
               ? "계정에 지정된 발신 명의로 고정됩니다."
-              : senderBranch !== branch
-                ? `${branch} 학생에게 ${senderBranch} 번호로 보냅니다. 문자비는 ${senderBranch} 계정에서 차감됩니다.`
+              : !senderOptions.some((o) => o.branch === senderBranch)
+                ? "전 분원 학생에게 보냅니다. 보낼 번호를 골라주세요."
+                : senderBranch !== branch
+                  ? `${branch === "전체" ? "전 분원" : branch} 학생에게 ${senderBranch} 번호로 보냅니다. 문자비는 ${senderBranch} 계정에서 차감됩니다.`
                 : "선택한 명의로 발신번호·표시명이 정해집니다."}
           </span>
         </div>
