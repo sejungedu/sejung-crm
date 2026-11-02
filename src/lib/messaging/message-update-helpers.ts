@@ -66,22 +66,6 @@ export async function loadCampaignSender(
   return campaignSender(data);
 }
 
-/**
- * 캠페인의 sender_division 만 정규화해 반환. getCampaign 이 필드를 떨구는 재발송
- * 경로에서 사용. select("*") 로 읽어 컬럼 부재(마이그 적용 전)에도 안전(null=본원).
- */
-export async function loadCampaignSenderDivision(
-  supabase: SupabaseSrv,
-  campaignId: string,
-): Promise<Division | null> {
-  const { data } = await supabase
-    .from("crm_campaigns")
-    .select("*")
-    .eq("id", campaignId)
-    .maybeSingle();
-  return campaignSenderDivision(data);
-}
-
 /** 캠페인 상태 enum. crm_campaigns.status 가 허용하는 값. */
 export type CampaignStatus =
   | "발송중"
