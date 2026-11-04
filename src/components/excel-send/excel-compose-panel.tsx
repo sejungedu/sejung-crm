@@ -22,10 +22,21 @@ import {
   type TemplateTypeLiteral,
 } from "@/lib/schemas/template";
 import { excelSendAction } from "@/app/(features)/excel-send/actions";
+import { BRANCHES } from "@/config/branches";
+import {
+  branchDivisions,
+  DEFAULT_DIVISION,
+  type Division,
+} from "@/config/divisions";
+import { branchBrandName } from "@/lib/messaging/guards";
 import { buildSendRecipients, type ParsedRecipientRow } from "./excel-parse";
 
 interface Props {
   rows: ParsedRecipientRow[];
+  /** 발송 분원 기본값. 빈 문자열이면 마스터가 직접 고른다. */
+  defaultBranch: string;
+  /** 비마스터 계정 고정 명의. null 이면 마스터(분원·명의 자유 선택). */
+  lockedDivision: Division | null;
 }
 
 const TYPE_OPTIONS: Array<{
@@ -51,7 +62,7 @@ function toLocalInput(d: Date): string {
  * - 발송: 잘못된 번호 제외 + 중복 1회 정리한 명단을 excelSendAction 으로 전송.
  *   즉시 발송 또는 예약 발송(최소 5분 후, 발송 전까지 캠페인 상세에서 취소 가능).
  */
-export function ExcelComposePanel({ rows }: Props) {
+export function ExcelComposePanel({ rows, defaultBranch, lockedDivision }: Props) {
   const { show } = useToast();
   const router = useRouter();
   const bodyRef = useRef<HTMLTextAreaElement>(null);
@@ -61,6 +72,28 @@ export function ExcelComposePanel({ rows }: Props) {
   const [body, setBody] = useState("");
   const [isAd, setIsAd] = useState(false);
   const [sending, startSend] = useTransition();
+  // 발송 분원·발신 명의 — 마스터는 전 분원 번호 중 선택, 비마스터는 고정.
+  const canPick = lockedDivision == null;
+  const [sender, setSender] = useState(
+    defaultBranch
+      ? `${defaultBranch}|${lockedDivision ?? DEFAULT_DIVISION}`
+      : "",
+  );
+  const [senderBranch, senderDivision] = sender.split("|") as [
+    string,
+    Division | undefined,
+  ];
+  const senderOptions = useMemo(
+    () =>
+      (canPick ? [...BRANCHES] : defaultBranch ? [defaultBranch] : []).flatMap(
+        (b) =>
+          branchDivisions(b).map((d) => ({
+            value: `${b}|${d}`,
+            label: branchBrandName(b, d),
+          })),
+      ),
+    [canPick, defaultBranch],
+  );
   const [mode, setMode] = useState<"now" | "schedule">("now");
   const [scheduleAt, setScheduleAt] = useState("");
   const minScheduleAt = useMemo(
@@ -82,8 +115,15 @@ export function ExcelComposePanel({ rows }: Props) {
 
   const scheduleMissing = mode === "schedule" && !scheduleAt;
 
+  const senderMissing = sender === "";
+
   const disabled =
-    sending || bodyEmpty || overflow || noRecipients || scheduleMissing;
+    sending ||
+    bodyEmpty ||
+    overflow ||
+    noRecipients ||
+    scheduleMissing ||
+    senderMissing;
 
   const onTypeChange = (next: TemplateTypeLiteral) => {
     setType(next);
@@ -121,6 +161,8 @@ export function ExcelComposePanel({ rows }: Props) {
         subject: subjectRequired ? subject.trim() || null : null,
         body,
         isAd,
+        senderBranch: senderBranch || undefined,
+        senderDivision,
         scheduledAt:
           mode === "schedule" && scheduleAt
             ? new Date(scheduleAt).toISOString()
@@ -387,6 +429,39 @@ export function ExcelComposePanel({ rows }: Props) {
             </div>
           </div>
         )}
+      </div>
+
+      {/* 발신 명의 — 발송 분원(sendon 계정)과 번호·표시명을 함께 정한다 */}
+      <div className="space-y-1.5">
+        <label
+          htmlFor="excel-send-sender"
+          className="text-[14px] font-medium text-[color:var(--text)]"
+        >
+          발신 명의
+        </label>
+        <select
+          id="excel-send-sender"
+          value={sender}
+          disabled={!canPick}
+          onChange={(e) => setSender(e.target.value)}
+          className="w-full sm:w-auto h-10 rounded-lg px-3 bg-[color:var(--bg-card)] border border-[color:var(--border)] text-[15px] text-[color:var(--text)] focus:outline-none focus:border-[color:var(--border-strong)] cursor-pointer disabled:bg-[color:var(--bg-muted)] disabled:text-[color:var(--text-muted)] disabled:cursor-not-allowed"
+        >
+          {senderMissing && (
+            <option value="" disabled>
+              발신 번호를 선택하세요
+            </option>
+          )}
+          {senderOptions.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+        <p className="text-[12px] text-[color:var(--text-muted)]">
+          {canPick
+            ? "고른 분원의 sendon 계정·번호로 나가며 문자비도 그 계정에서 차감됩니다."
+            : "계정에 지정된 분원·발신 명의로 고정됩니다."}
+        </p>
       </div>
 
       {/* 발송 */}

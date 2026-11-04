@@ -37,7 +37,11 @@ import {
   safeUpdateCampaignStatus,
   incrementCampaignCost,
 } from "./message-update-helpers";
-import { resolveSenderDivision } from "./resolve-sender-division";
+import {
+  resolveSenderBranch,
+  resolveSenderDivision,
+} from "./resolve-sender-division";
+import { BRANCHES } from "@/config/branches";
 import { SCHEDULE_MIN_LEAD_MS, SCHEDULE_MIN_LEAD_LABEL } from "./schedule-window";
 import { isDevSeedMode } from "@/lib/profile/students-dev-seed";
 import { getCurrentUser } from "@/lib/auth/current-user";
@@ -96,18 +100,6 @@ export async function excelSend(
       { skippedInvalid: 0, skippedUnsub: 0, deduped: 0 },
     );
   }
-  // 권한 — 본인 분원 캠페인 발송.
-  if (!can(user, "send", "campaign", user.branch)) {
-    return withSkips(
-      { status: "failed", reason: "본 분원 캠페인 발송 권한이 없습니다" },
-      { skippedInvalid: 0, skippedUnsub: 0, deduped: 0 },
-    );
-  }
-
-  // 발신 명의 서버 강제 — 엑셀 발송은 명의 입력이 없으므로 requested=undefined.
-  // 비마스터는 계정 고정 명의, 마스터는 본원으로 귀결.
-  const sendDivision = resolveSenderDivision(user, user.branch, undefined);
-
   // 2) 서버 재검증 (클라 검증과 별개로 신뢰 경계에서 한 번 더)
   const parsed = ExcelSendInputSchema.safeParse(input);
   if (!parsed.success) {
@@ -119,6 +111,30 @@ export async function excelSend(
     );
   }
   const data = parsed.data;
+
+  // 발송 분원·발신 명의 서버 강제. 엑셀 명단은 학생 분원이 없으므로 발송 분원 =
+  // 발신 분원(sendon 계정·번호·브랜드명). 마스터만 분원·명의를 고르고(2026-11-04),
+  // 비마스터는 본인 분원 + 계정 고정 명의. 마스터 user.branch 는 '마스터' 라
+  // 분원을 고르지 않으면 기본 계정으로 새므로 막는다.
+  const sendBranch = resolveSenderBranch(user, user.branch, data.senderBranch);
+  if (!(BRANCHES as readonly string[]).includes(sendBranch)) {
+    return withSkips(
+      { status: "failed", reason: "발송 분원(번호)을 선택하세요" },
+      { skippedInvalid: 0, skippedUnsub: 0, deduped: 0 },
+    );
+  }
+  // 권한 — 발송 분원 캠페인 발송.
+  if (!can(user, "send", "campaign", sendBranch)) {
+    return withSkips(
+      { status: "failed", reason: "본 분원 캠페인 발송 권한이 없습니다" },
+      { skippedInvalid: 0, skippedUnsub: 0, deduped: 0 },
+    );
+  }
+  const sendDivision = resolveSenderDivision(
+    user,
+    sendBranch,
+    data.senderDivision,
+  );
   // LMS 가 아니면 subject 무시.
   const subject = data.type === "LMS" ? data.subject : null;
 
@@ -190,7 +206,7 @@ export async function excelSend(
   const guarded = applyAllGuards({
     body: data.body,
     isAd: data.isAd,
-    brand: branchBrandName(user.branch, sendDivision),
+    brand: branchBrandName(sendBranch, sendDivision),
     scheduledAt: scheduledAt ?? new Date(),
     recipients,
     unsubscribedPhones,
@@ -224,8 +240,8 @@ export async function excelSend(
   }
 
   // 캠페인·메시지 쓰기는 service 클라이언트(RLS 우회). 위에서 getCurrentUser +
-  // can(user,'send','campaign',user.branch) 로 RLS 정책(can_send_branch)과 동일한
-  // 검사를 마쳤고, 캠페인 branch 도 user.branch 로 고정된다 — 권한 판정 불변.
+  // can(user,'send','campaign',sendBranch) 로 RLS 정책(can_send_branch)과 동일한
+  // 검사를 마쳤고, 캠페인 branch 도 sendBranch 로 고정된다 — 권한 판정 불변.
   // 사용자 세션으로 쓰면 authenticated 롤의 짧은 statement_timeout 에 걸려 DB 가
   // 바쁜 시간대에 큐 적재가 통째로 실패한다(send-campaign 주석 참조).
   const supabase = createSupabaseServiceClient();
@@ -242,7 +258,7 @@ export async function excelSend(
     total_recipients: totalRecipients,
     total_cost: 0,
     created_by: user.user_id,
-    branch: user.branch,
+    branch: sendBranch,
     sender_division: sendDivision,
     is_test: false,
     body: data.body,
@@ -350,8 +366,8 @@ export async function excelSend(
   }
 
   // 8) 발송 — 어댑터/발신번호 준비. 분원별 발신번호(엑셀발송은 본인 분원 기준).
-  const adapter = createSmsAdapter(user.branch, sendDivision);
-  const fromNumber = readFromNumber(adapter.name, user.branch, sendDivision);
+  const adapter = createSmsAdapter(sendBranch, sendDivision);
+  const fromNumber = readFromNumber(adapter.name, sendBranch, sendDivision);
   if (!fromNumber) {
     await safeUpdateCampaignStatus(
       supabase,

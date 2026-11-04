@@ -16,6 +16,7 @@
  */
 
 import { z } from "zod";
+import { DIVISIONS } from "@/config/divisions";
 
 /** 엑셀 한 행 = 수신자 1명. name 은 선택, phone 은 필수. */
 export const ExcelRecipientSchema = z.object({
@@ -35,6 +36,10 @@ export const ExcelSendInputSchema = z.object({
   subject: z.string().trim().max(120).nullable().default(null),
   body: z.string().trim().min(1, "본문은 필수입니다"),
   isAd: z.boolean().default(false),
+  /** 발송 분원(sendon 계정·번호). 마스터만 의미 — 비마스터는 서버가 본인 분원으로 고정. */
+  senderBranch: z.string().trim().min(1).max(20).optional(),
+  /** 발신 명의. 마스터만 의미 — 비마스터는 계정 명의로 고정. */
+  senderDivision: z.enum(DIVISIONS).optional(),
   /** 예약 발송 시각(ISO 8601). null 이면 즉시 발송. 최소 리드타임은 코어에서 검증. */
   scheduledAt: z
     .string()

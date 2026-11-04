@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { ChevronLeft } from "lucide-react";
 import { getCurrentUser } from "@/lib/auth/current-user";
+import { getSelectedBranch } from "@/lib/auth/branch-context";
+import { BRANCHES } from "@/config/branches";
+import { DEFAULT_DIVISION, type Division } from "@/config/divisions";
 import { isDevSeedMode } from "@/lib/profile/students-dev-seed";
 import { ExcelSendClient } from "@/components/excel-send/excel-send-client";
 
@@ -59,6 +62,18 @@ export default async function ExcelSendPage() {
     );
   }
 
+  // 발송 분원·명의 — 마스터는 고른다(사이드바 선택 분원이 기본값, 전체면 직접 선택).
+  // 비마스터는 본인 분원 + 계정 명의로 고정(서버가 최종 강제, 여기선 표시용).
+  const isMaster = currentUser.role === "master";
+  const selected = isMaster ? await getSelectedBranch() : currentUser.branch;
+  const defaultBranch =
+    selected && (BRANCHES as readonly string[]).includes(selected)
+      ? selected
+      : "";
+  const lockedDivision: Division | null = isMaster
+    ? null
+    : (currentUser.sender_division ?? DEFAULT_DIVISION);
+
   return (
     <div className="max-w-5xl space-y-6">
       <Link
@@ -88,7 +103,10 @@ export default async function ExcelSendPage() {
         </div>
       )}
 
-      <ExcelSendClient />
+      <ExcelSendClient
+        defaultBranch={defaultBranch}
+        lockedDivision={lockedDivision}
+      />
     </div>
   );
 }
